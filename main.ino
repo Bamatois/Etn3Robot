@@ -3,10 +3,12 @@
 #define PINPWMR 10
 #define PINPWML 11
 
+static int State_lumfinder = 0;
 
 void setup() {
 
     /*  Setup pinouts   */
+    Serial.begin(9600);
     pinMode(PINPWML,OUTPUT);
     pinMode(PINPWMR,OUTPUT);
     pinMode(PINSENSR,OUTPUT);
@@ -16,19 +18,20 @@ void setup() {
 }
 
 void loop() {
-    int i=0;                 //increment
-    PwrMotorL(25);
-    PwrMotorR(-75);
-    /*
-    do
+    Serial.println(LightadjL());
+
+    
+    while (State_lumfinder == 0)
     {
-        delay(250);
-        PwrMotorL(i);
-        PwrMotorR(i);
-        i++;
-    } while (i<=100);*/
-
-
+        PwrMotorR(50);
+        PwrMotorL(-50);
+        if (analogRead(A1)<35)
+        {
+            State_lumfinder = 1;
+        }
+    }
+    PwrMotorL(60-LightadjL());
+    PwrMotorR(60-LightadjR());
 }
 
 int PwrMotorR(int PWM)//    Right motor management
@@ -57,4 +60,44 @@ int PwrMotorL(int PWM)//    Left motor management
     }
     analogWrite(PINPWML,PWM*2.56-1); //set pwm
     return 0;
+}
+int LightadjR()
+{
+    int Output_value;
+    int derivee = Photo_deriv();
+    
+    if (derivee<0) 
+    {
+        Output_value = derivee*10;
+    }else Output_value = 0;
+
+    if (Output_value>60)
+    {
+        Output_value=60;
+    }
+    return Output_value;
+}
+
+int Photo_deriv()
+{
+    /*int SensorValueD = analogRead(A0);
+    int SensorValueG = analogRead(A1);*/
+    int derivee = analogRead(A0) - analogRead(A1);
+    return derivee;
+}
+
+int LightadjL()
+{
+    int Output_value;
+    int derivee = Photo_deriv();
+    if (derivee>0) 
+    {
+        Output_value = derivee*10;
+    }else Output_value = 0;
+
+    if (Output_value>60)
+    {
+        Output_value=60;
+    }
+    return Output_value;
 }
