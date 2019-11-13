@@ -72,7 +72,7 @@ int LightadjR() // speed adjustment right motor
     
     if (derivee<0) 
     {
-        Output_value = derivee*10;
+        Output_value = -derivee*10;
     }else Output_value = 0;
 
     if (Output_value>60)
@@ -86,7 +86,12 @@ int Photo_deriv()
 {
     /*int SensorValueD = analogRead(A0);
     int SensorValueG = analogRead(A1);*/
+
+    // as the light increase the value of the sensor became closser to 0
     int derivee = analogRead(A0) - analogRead(A1);
+
+    //if derivee positive robot is turning right
+    //if derivee negative robot is turning left
     return derivee;
 }
 
