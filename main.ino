@@ -1,5 +1,5 @@
-#define PINSENSR 8
-#define PINSENSL 7
+#define PIN_SENS_MOTR 8
+#define PIN_SENS_MOTL 7
 #define PINPWMR 10
 #define PINPWML 11
 
@@ -11,20 +11,24 @@ void setup() {
     Serial.begin(9600);
     pinMode(PINPWML,OUTPUT);
     pinMode(PINPWMR,OUTPUT);
-    pinMode(PINSENSR,OUTPUT);
-    pinMode(PINSENSL,OUTPUT);
-    digitalWrite(PINSENSR, HIGH);
-    digitalWrite(PINSENSL, HIGH);
+    pinMode(PIN_SENS_MOTR,OUTPUT);
+    pinMode(PIN_SENS_MOTL,OUTPUT);
+
+    // init sens de rotation
+    digitalWrite(PIN_SENS_MOTR, HIGH);
+    digitalWrite(PIN_SENS_MOTL, HIGH);
 }
 
 void loop() {
     Serial.println(LightadjL());
 
     
-    while (State_lumfinder == 0)
+    while (State_lumfinder == 0)// while light isn't strong enough
     {
+        //search for light by spinning
         PwrMotorR(50);
         PwrMotorL(-50);
+        // light threshold to stop searching
         if (analogRead(A1)<35)
         {
             State_lumfinder = 1;
@@ -38,10 +42,10 @@ int PwrMotorR(int PWM)//    Right motor management
 {
     if (PWM>=0)
     {
-        digitalWrite(PINSENSR,LOW); //  set forward
+        digitalWrite(PIN_SENS_MOTR,LOW); //  set forward
     }else
     {
-        digitalWrite(PINSENSR,HIGH); //  Set Backward
+        digitalWrite(PIN_SENS_MOTR,HIGH); //  Set Backward
         PWM = -PWM;
     }
     analogWrite(PINPWMR,PWM*2.56-1); //set pwm
@@ -52,16 +56,16 @@ int PwrMotorL(int PWM)//    Left motor management
 {
     if (PWM>=0)
     {
-        digitalWrite(PINSENSL,LOW); //  set forward
+        digitalWrite(PIN_SENS_MOTL,LOW); //  set forward
     }else
     {
-        digitalWrite(PINSENSL,HIGH); //  Set Backward
+        digitalWrite(PIN_SENS_MOTL,HIGH); //  Set Backward
         PWM = -PWM;
     }
     analogWrite(PINPWML,PWM*2.56-1); //set pwm
     return 0;
 }
-int LightadjR()
+int LightadjR() // speed adjustment right motor
 {
     int Output_value;
     int derivee = Photo_deriv();
@@ -86,7 +90,7 @@ int Photo_deriv()
     return derivee;
 }
 
-int LightadjL()
+int LightadjL()// speed adjustment left motor
 {
     int Output_value;
     int derivee = Photo_deriv();
