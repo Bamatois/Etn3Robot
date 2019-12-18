@@ -12,7 +12,8 @@
 #define transistor_R 6 
 #define transistor_L 7
 
-#define MAX_SPEED 60
+#define MAX_SPEED 20
+#define ADJ_DIST 0.5
 
 static int State_lumfinder = 0;
 
@@ -58,8 +59,8 @@ void setup() {
 
 void loop() {
     //delay(500);
-    Serial.println(F("Start"));
-    Serial.println("");
+    /* Serial.println(F("Start"));
+    Serial.println("");*/
     //Serial.println(LightadjL());
     while (State_lumfinder == 1)// while light isn't strong enough (0)
     {
@@ -74,9 +75,9 @@ void loop() {
     }
     /*PwrMotorL(MAX_SPEED-LightadjL());
     PwrMotorR(MAX_SPEED-LightadjR());*/
-
-    PwrMotorL(MAX_SPEED-DistadjL());
-    PwrMotorR(MAX_SPEED-DistadjR());
+    
+    int speedR,speedL;
+    Distance_management(speedL,speedR);
 }
 
 int PwrMotorR(int PWM)//    Right motor management
@@ -122,108 +123,85 @@ int LightadjR() // speed adjustment right motor
     }
     return Output_value;
 }
-int Distance_management()
+void Distance_management(int * speedL,int* speedR)
 {
-    /* 1. Lance une mesure de distance en envoyant une impulsion HIGH de 10µs sur la broche TRIGGER */
-    digitalWrite(TRIGGER_PIN_R, HIGH);
-    delay(10);
-    digitalWrite(TRIGGER_PIN_R, LOW);
-    long mesure1 = pulseIn(ECHO_PIN_R, HIGH, MEASURE_TIMEOUT);
-  
-    /* 2. Mesure le temps entre l'envoi de l'impulsion ultrasonique et son écho (si il existe) */
-    if (mesure1==0){
-      digitalWrite(transistor_R, LOW);
-      delay (10);
-      digitalWrite(transistor_R, HIGH);
-      mesure1 = pulseIn(ECHO_PIN_R, HIGH, MEASURE_TIMEOUT);
-    }
-    float distance_mm1 = mesure1 / 2 * SOUND_SPEED;
-   /* Serial.print(F("mesure1: "));
-    Serial.println  (mesure1);*/
-    
-    // Affiche les résultats en mm, cm et m 
-    Serial.print(F("DistanceR: "));
-    Serial.print(distance_mm1/10, 2);
-    Serial.println(F("cm, "));
-    
-    //deuxieme capteur
-    digitalWrite(TRIGGER_PIN_L, HIGH);
-    delay(10);
-    digitalWrite(TRIGGER_PIN_L, LOW);
-    long mesure2 = pulseIn(ECHO_PIN_L, HIGH, MEASURE_TIMEOUT);
-    if (mesure2==0)
+    long mesure1 = 0;
+    long mesure2 = 0;
+    float distance_mm1 = 0;
+    float distance_mm2  = 0;
+    int derivee = 0;
+    while( mesure1 == 0 || mesure2 ==0)
     {
-      digitalWrite(transistor_L, LOW);
-      delay (10);
-      digitalWrite(transistor_L, HIGH);
+      /* 1. Lance une mesure de distance en envoyant une impulsion HIGH de 10µs sur la broche TRIGGER */
+      digitalWrite(TRIGGER_PIN_R, HIGH);
+      delay(3);
+      digitalWrite(TRIGGER_PIN_R, LOW);
+      mesure1 = pulseIn(ECHO_PIN_R, HIGH, MEASURE_TIMEOUT);
+    
+      /* 2. Mesure le temps entre l'envoi de l'impulsion ultrasonique et son écho (si il existe) */
+      if (mesure1==0){
+        digitalWrite(transistor_R, LOW);
+        delay (3);
+        digitalWrite(transistor_R, HIGH);
+        mesure1 = pulseIn(ECHO_PIN_R, HIGH, MEASURE_TIMEOUT);
+      }
+      distance_mm1 = mesure1 / 2 * SOUND_SPEED;
+      
+      // Affiche les résultats en mm, cm et m 
+      /*Serial.print(F("DistanceR: "));
+      Serial.print(distance_mm1/10, 2);
+      Serial.println(F("cm, "));*/
+      
+      //deuxieme capteur
+      digitalWrite(TRIGGER_PIN_L, HIGH);
+      delay(3);
+      digitalWrite(TRIGGER_PIN_L, LOW);
       mesure2 = pulseIn(ECHO_PIN_L, HIGH, MEASURE_TIMEOUT);
+      if (mesure2==0)
+      {
+        digitalWrite(transistor_L, LOW);
+        delay (3);
+        digitalWrite(transistor_L, HIGH);
+        mesure2 = pulseIn(ECHO_PIN_L, HIGH, MEASURE_TIMEOUT);
+      }
+      distance_mm2 = mesure2 / 2 * SOUND_SPEED;
+      
+      // Affiche les résultats en mm, cm et m 
+      /*Serial.print(F("DistanceL: "));
+      Serial.print(distance_mm2/10, 2);
+      Serial.println(F("cm, "));*/
     }
-    float distance_mm2 = mesure2 / 2 * SOUND_SPEED;
-    /*Serial.print(F("mesure2: "));
-    Serial.println  (mesure2);*/
-    // Affiche les résultats en mm, cm et m 
-    
-    Serial.print(F("DistanceL: "));
-    Serial.print(distance_mm2/10, 2);
-    Serial.println(F("cm, "));
-    
     //if derivee positive robot is turning right
     //if derivee negative robot is turning left
-    if (distance_mm1 == 0 || distance_mm2 == 0)
+    /*Serial.print(F("Derivee: "));
+    Serial.print(distance_mm1 - distance_mm2);
+    Serial.println(F("mm, "));*/
+    derivee = (int)distance_mm1 - (int)distance_mm2;
+    if( derivee < 0)
     {
-      Serial.print(F("Derivee: "));
-      Serial.println(F("ERREUR"));
-      return 65235;
-    }else{
-      Serial.print(F("Derivee: "));
-      Serial.print(distance_mm1 - distance_mm2);
-      Serial.println(F("mm, "));
-     return distance_mm1 - distance_mm2;
+      if( (derivee * ADJ_DIST) < -MAX_SPEED){
+      PwrMotorL(0);
+      PwrMotorR(MAX_SPEED);
+      }else
+      {
+        Serial.print(F("Correction G: "));
+        Serial.println(MAX_SPEED + derivee * ADJ_DIST);
+        PwrMotorL(MAX_SPEED + derivee * ADJ_DIST);
+        PwrMotorR(MAX_SPEED);
+      }
+    }else
+    {
+      if(derivee * ADJ_DIST >= MAX_SPEED){
+      PwrMotorR(0);
+      PwrMotorL(MAX_SPEED);
+      }else
+      {
+        Serial.print(F("Correction R: "));
+        Serial.println(MAX_SPEED - derivee*ADJ_DIST);
+        PwrMotorR(MAX_SPEED - derivee*ADJ_DIST);
+        PwrMotorL(MAX_SPEED);
+      }
     }
-   
-    
-}
-int DistadjR() // speed adjustment right motor
-{
-    int Output_value;
-    int derivee = Distance_management();
-    if (derivee<0) 
-    {
-        Output_value = -derivee*3;
-    }else Output_value = 0;
-
-    if (Output_value>MAX_SPEED)
-    {
-        Output_value=MAX_SPEED;
-    }
-    if (derivee==65235) 
-    {
-        Output_value = MAX_SPEED;
-    }
-    Serial.print(F("Ajust MR: "));
-    Serial.println(Output_value);
-    return Output_value;
-}
-int DistadjL()// speed adjustment left motor
-{
-    int Output_value;
-    int derivee = Distance_management();
-    if (derivee>0) 
-    {
-        Output_value = derivee*3;
-    }else Output_value = 0;
-
-    if (Output_value>MAX_SPEED)
-    {
-        Output_value=MAX_SPEED;
-    }
-    if (derivee==65235) 
-    {
-        Output_value = MAX_SPEED;
-    }
-    Serial.print(F("Ajust ML: "));
-    Serial.println(Output_value);
-    return Output_value;
 }
 
 int Photo_deriv()
